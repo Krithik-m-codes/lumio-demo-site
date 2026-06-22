@@ -117,7 +117,7 @@ const goToMarketTeam = [
   },
 ];
 
-function Avatar({ initials, color, size = 80 }) {
+function Avatar({ initials, color, size = 80 }: { initials: string; color: string; size?: number }) {
   return (
     <div
       style={{
@@ -147,7 +147,7 @@ function Avatar({ initials, color, size = 80 }) {
   );
 }
 
-function LeadershipCard({ person }) {
+function LeadershipCard({ person }: { person: { name: string; title: string; bio: string; initials: string; color: string } }) {
   return (
     <div
       className="card"
@@ -195,7 +195,7 @@ function LeadershipCard({ person }) {
   );
 }
 
-function TeamCard({ person }) {
+function TeamCard({ person }: { person: { name: string; title: string; bio: string; initials: string; color: string } }) {
   return (
     <div
       className="card"
