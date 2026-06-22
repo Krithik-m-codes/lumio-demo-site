@@ -4,6 +4,3 @@
 .env.local
 *.tsbuildinfo
 next-env.d.ts
-
-/app
-/lib
