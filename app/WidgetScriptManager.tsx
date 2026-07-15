@@ -25,6 +25,9 @@ const SNIPPET_PRESETS = [
     },
 ];
 
+const WIDGET_STORAGE_KEY_PATTERNS = [/shubpy/i, /widget/i, /chat/i];
+const WIDGET_COOKIE_PATTERNS = [/shubpy/i, /widget/i, /chat/i];
+
 function readStoredSnippet(): string | null {
     if (typeof window === "undefined") {
         return null;
@@ -53,6 +56,40 @@ function extractScriptElement(snippet: string) {
     return wrapper.querySelector("script");
 }
 
+function matchesAnyPattern(value: string, patterns: RegExp[]) {
+    return patterns.some((pattern) => pattern.test(value));
+}
+
+function clearWidgetState() {
+    const storageTargets = [window.localStorage, window.sessionStorage];
+
+    storageTargets.forEach((storage) => {
+        const keys = Object.keys(storage);
+        keys.forEach((key) => {
+            if (matchesAnyPattern(key, WIDGET_STORAGE_KEY_PATTERNS)) {
+                storage.removeItem(key);
+            }
+        });
+    });
+
+    document.querySelectorAll('iframe[src*="chat.shubpy.com"], script[src*="chat.shubpy.com"]').forEach((node) => {
+        node.remove();
+    });
+
+    document.cookie.split(";").forEach((cookie) => {
+        const [rawName] = cookie.split("=");
+        const cookieName = rawName.trim();
+
+        if (!cookieName || !matchesAnyPattern(cookieName, WIDGET_COOKIE_PATTERNS)) {
+            return;
+        }
+
+        const expires = "expires=Thu, 01 Jan 1970 00:00:00 GMT";
+        document.cookie = `${cookieName}=; ${expires}; path=/`;
+        document.cookie = `${cookieName}=; ${expires}; path=/; domain=${window.location.hostname}`;
+    });
+}
+
 export default function WidgetScriptManager() {
     const [isOpen, setIsOpen] = useState(false);
     const [hasLoadedConfig, setHasLoadedConfig] = useState(false);
@@ -60,6 +97,7 @@ export default function WidgetScriptManager() {
     const [snippetText, setSnippetText] = useState("");
     const [selectedPreset, setSelectedPreset] = useState("custom");
     const [status, setStatus] = useState<string | null>(null);
+    const [reloadToken, setReloadToken] = useState(0);
 
     useEffect(() => {
         const storedSnippet = readStoredSnippet();
@@ -105,7 +143,7 @@ export default function WidgetScriptManager() {
         return () => {
             script.remove();
         };
-    }, [activeSnippet, hasLoadedConfig]);
+    }, [activeSnippet, hasLoadedConfig, reloadToken]);
 
     const openSettings = () => {
         const currentSnippet = activeSnippet || "";
@@ -137,21 +175,20 @@ export default function WidgetScriptManager() {
             return;
         }
 
+        if (activeSnippet && activeSnippet !== nextSnippet) {
+            clearWidgetState();
+        }
+
         window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ snippet: nextSnippet }));
-        setActiveSnippet(nextSnippet);
-        setStatus("Saved to localStorage.");
-        setIsOpen(false);
-        setHasLoadedConfig(true);
+        window.location.reload();
     };
 
     const handleReset = () => {
-        window.localStorage.removeItem(STORAGE_KEY);
-        setActiveSnippet(null);
-        setSnippetText("");
-        setSelectedPreset("custom");
-        setStatus("Saved snippet cleared. The widget will stay unloaded until you save again.");
-        setIsOpen(true);
-        setHasLoadedConfig(true);
+        clearWidgetState();
+        const nextSnippet = DEFAULT_SNIPPET;
+
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ snippet: nextSnippet }));
+        window.location.reload();
     };
 
     return (
